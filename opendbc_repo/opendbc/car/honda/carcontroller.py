@@ -180,6 +180,11 @@ class CarController(CarControllerBase):
     actuators = CC.actuators
     hud_control = CC.hudControl
     hud_v_cruise = hud_control.setSpeed / CS.v_cruise_factor if hud_control.speedVisible else 255
+    if hud_control.speedVisible and self.CP.carFingerprint == CAR.HONDA_ACCORD_9G and not CS.is_metric:
+      # The 9G cluster takes CRUISE_SPEED in whole kph and rounds its mph conversion up, so a kph value
+      # rounded to nearest can display the setpoint +1 mph (70 mph -> 113 kph -> 70.2 -> "71").
+      # Floor keeps the cluster's value in (S-1, S], which it shows as S.
+      hud_v_cruise = math.floor(hud_v_cruise + 1e-6)
     pcm_cancel_cmd = CC.cruiseControl.cancel
     if self.bosch_longitudinal is not None:
       self.bosch_longitudinal.observe_orientation(CC.orientationNED)

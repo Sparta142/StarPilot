@@ -1,6 +1,6 @@
 from opendbc.car import CanBusBase
 from opendbc.car.common.conversions import Conversions as CV
-from opendbc.car.honda.values import HondaFlags, CarControllerParams
+from opendbc.car.honda.values import CAR, HondaFlags, CarControllerParams
 
 # CAN bus layout with relay
 # 0 = ACC-CAN - radar side
@@ -177,6 +177,9 @@ def create_lkas_hud(packer, bus, CP, hud_control, lat_active, steering_available
   # Classic/radarless AOL can steer while normal engagement is off.
   # Keep the upstream CAN-FD indication and ALT_RADAR overrides below.
   lanes_visible = bool(hud_control.lanesVisible or (lat_active and not (CP.flags & HondaFlags.BOSCH_CANFD)))
+  # Accord 9G: lanes only while lateral is actually active, not in longitudinal-only engagement.
+  if CP.carFingerprint == CAR.HONDA_ACCORD_9G:
+    lanes_visible = bool(lat_active)
 
   lkas_hud_values = {
     'LKAS_READY': 1,
