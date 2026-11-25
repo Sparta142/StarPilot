@@ -154,6 +154,39 @@ def accord_9g_cluster_kph(mph: int) -> int:
   return (16 * mph + 5) // 10
 
 
+class Accord9gLeadBeep:
+  """OEM Accord 9G: one quick chime (LKAS_HUD BEEP=3) when ACC acquires a lead car.
+
+  Pulses BEEP=3 for a few HUD frames on the rising edge, and re-arms only after the lead has been gone for a while
+  so a flickering lead doesn't chime repeatedly. Call once per HUD frame (10 Hz)."""
+  SINGLE_BEEP = 3
+  PULSE_FRAMES = 3   # 0.3 s; the cluster plays a single beep however long BEEP=3 is held
+  REARM_FRAMES = 20  # 2 s with no lead before a new lead beeps again
+
+  def __init__(self):
+    self.armed = True
+    self.no_lead_frames = 0
+    self.pulse_left = 0
+
+  def update(self, enabled: bool, lead_visible: bool) -> int:
+    lead = enabled and lead_visible
+    if lead:
+      self.no_lead_frames = 0
+      if self.armed:
+        self.armed = False
+        self.pulse_left = self.PULSE_FRAMES
+    else:
+      self.no_lead_frames += 1
+      if self.no_lead_frames >= self.REARM_FRAMES:
+        self.armed = True
+    if not enabled:
+      self.pulse_left = 0
+    if self.pulse_left > 0:
+      self.pulse_left -= 1
+      return self.SINGLE_BEEP
+    return 0
+
+
 def create_acc_hud(packer, bus, CP, enabled, pcm_speed, pcm_accel, hud_control, hud_v_cruise, is_metric, acc_hud, overrides=None):
   acc_hud_values = {
     'CRUISE_SPEED': hud_v_cruise,
@@ -185,7 +218,8 @@ def create_acc_hud(packer, bus, CP, enabled, pcm_speed, pcm_accel, hud_control, 
   return packer.make_can_msg("ACC_HUD", bus, acc_hud_values)
 
 
-def create_lkas_hud(packer, bus, CP, hud_control, lat_active, steering_available, alert_steer_required, lkas_hud, overrides=None):
+def create_lkas_hud(packer, bus, CP, hud_control, lat_active, steering_available, alert_steer_required, lkas_hud, overrides=None,
+                    beep=0):
   commands = []
   # Classic/radarless AOL can steer while normal engagement is off.
   # Keep the upstream CAN-FD indication and ALT_RADAR overrides below.
@@ -204,7 +238,7 @@ def create_lkas_hud(packer, bus, CP, hud_control, lat_active, steering_available
     'LKAS_STATE_CHANGE': 1,
     'STEERING_REQUIRED': alert_steer_required,
     'SOLID_LANES': lanes_visible,
-    'BEEP': 0,
+    'BEEP': beep,
   }
 
   if accord_9g_dashed:

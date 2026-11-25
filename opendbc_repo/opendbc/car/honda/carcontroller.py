@@ -105,6 +105,8 @@ class CarController(CarControllerBase):
     self.packer = CANPacker(dbc_names[Bus.pt])
     self.params = CarControllerParams(CP)
     self.hud_test = HudTest() if CP.carFingerprint == CAR.HONDA_ACCORD_9G else None
+    self.lead_beep = (hondacan.Accord9gLeadBeep() if CP.carFingerprint == CAR.HONDA_ACCORD_9G and CP.openpilotLongitudinalControl
+                      else None)
     self.CAN = hondacan.CanBus(CP)
     self.bosch_longitudinal = BoschLongitudinal(CP, self.params) if bosch_long_qualified(CP) else None
     self.bosch_learning_params = None
@@ -326,8 +328,10 @@ class CarController(CarControllerBase):
                                                  hud_control, hud_v_cruise, CS.is_metric, CS.acc_hud, hud_overrides))
 
       steering_available = CS.out.cruiseState.available and CS.out.vEgo > max(self.params.STEER_GLOBAL_MIN_SPEED, self.CP.minSteerSpeed)
+      lead_beep = self.lead_beep.update(CC.enabled, hud_control.leadVisible) if self.lead_beep is not None else 0
       can_sends.extend(hondacan.create_lkas_hud(self.packer, self.CAN.lkas, self.CP, hud_control, CC.latActive,
-                                                steering_available, alert_steer_required, CS.lkas_hud, hud_overrides))
+                                                steering_available, alert_steer_required, CS.lkas_hud, hud_overrides,
+                                                beep=lead_beep))
 
       if self.CP.openpilotLongitudinalControl:
         # TODO: combining with create_acc_hud block above will change message order and will need replay logs regenerated

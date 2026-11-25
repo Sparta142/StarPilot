@@ -84,3 +84,47 @@ def test_no_detected_lines_is_hollow(lat_active):
   ci, frames = _send(cc)
   vl = _decode(ci, frames, "LKAS_HUD", ci.CC.CAN.lkas)
   assert not vl["SOLID_LANES"] and vl["DASHED_LANES"]
+
+
+def _lead_beeps(steps):
+  """Feed (enabled, lead_visible) HUD frames through one controller; return the LKAS_HUD BEEP sent each frame."""
+  cp = CarInterface.get_params(CAR.HONDA_ACCORD_9G, gen_empty_fingerprint(), [], True, False, False)
+  ci = CarInterface(cp)
+  ci.update([])
+  ci.CS.is_metric = False
+  state = structs.CarState(vEgo=30.0)
+  state.cruiseState.available = True
+  ci.CS.out = state
+  decoder = CANParser(DBC[CAR.HONDA_ACCORD_9G][Bus.pt], [("LKAS_HUD", 10)], ci.CC.CAN.lkas)
+  beeps, t = [], 10_000_000_000
+  for enabled, lead in steps:
+    for _ in range(10):  # HUD goes out every 10 control frames
+      cc = structs.CarControl(enabled=enabled, longActive=enabled, latActive=enabled)
+      cc.hudControl.leadVisible = lead
+      _, frames = ci.apply(cc.as_reader(), t)
+      t += 10_000_000
+      if frames:
+        decoder.update([(t, frames)])
+    beeps.append(decoder.vl["LKAS_HUD"]["BEEP"])
+  return beeps
+
+
+def test_lead_acquired_single_beep():
+  beeps = _lead_beeps([(True, False)] * 3 + [(True, True)] * 10)
+  assert beeps[:3] == [0, 0, 0]
+  assert beeps[3:6] == [3, 3, 3]  # short single_beep pulse
+  assert set(beeps[6:]) == {0}
+
+
+def test_lead_flicker_does_not_rebeep():
+  beeps = _lead_beeps([(True, True)] * 5 + [(True, False)] * 5 + [(True, True)] * 5)
+  assert beeps.count(3) == 3  # only the first acquisition
+
+
+def test_new_lead_after_gap_beeps_again():
+  beeps = _lead_beeps([(True, True)] * 5 + [(True, False)] * 25 + [(True, True)] * 5)
+  assert beeps[30:33] == [3, 3, 3]
+
+
+def test_no_lead_beep_when_disengaged():
+  assert set(_lead_beeps([(False, True)] * 10)) == {0}
