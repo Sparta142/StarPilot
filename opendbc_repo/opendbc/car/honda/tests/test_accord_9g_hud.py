@@ -29,15 +29,23 @@ def _decode(ci, frames, msg, bus):
   return decoder.vl[msg]
 
 
-@pytest.mark.parametrize("mph", range(20, 91))
-def test_imperial_cruise_speed_displays_setpoint(mph):
+def _cluster_mph(kph):
+  # Observed 9G cluster conversion: round(kph / 1.6), half up. Fits every in-car sample
+  # (comma/cluster 25/24, 30/29, 50/49, 50/51, 52/53, 57/58, 60/59, 62/63, 67/68, 70/71, 75/74, 90/91 under floor(kph)).
+  return math.floor(kph / 1.6 + 0.5)
+
+
+# v_cruise_kph is 0.1 kph precision and off the mph grid: it starts at an integer kph from vEgo and steps 1.6 kph.
+@pytest.mark.parametrize("v_cruise_kph", [x / 10 for x in range(300, 1451, 3)])
+def test_imperial_cruise_speed_displays_setpoint(v_cruise_kph):
   cc = structs.CarControl(enabled=True, longActive=True, latActive=True)
   cc.hudControl.speedVisible = True
-  cc.hudControl.setSpeed = float(mph * CV.MPH_TO_KPH * CV.KPH_TO_MS)  # as controlsd builds it
+  cc.hudControl.setSpeed = float(v_cruise_kph * CV.KPH_TO_MS)  # as controlsd builds it
   ci, frames = _send(cc)
   kph = _decode(ci, frames, "ACC_HUD", ci.CC.CAN.pt)["CRUISE_SPEED"]
-  # Assumes the cluster rounds its kph->mph conversion up; it must land on the setpoint.
-  assert math.ceil(kph * CV.KPH_TO_MPH) == mph
+  comma_mph = round(v_cruise_kph * CV.KPH_TO_MPH)  # as the onroad UI shows it
+  assert _cluster_mph(kph) == comma_mph
+  assert abs(kph / 1.6 - comma_mph) <= 0.32  # margin against the cluster's exact factor
 
 
 def test_metric_cruise_speed_unchanged():

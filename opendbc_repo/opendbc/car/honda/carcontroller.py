@@ -5,6 +5,7 @@ from opendbc.car import ACCEL_MAX_TAKEOFF
 
 from opendbc.can import CANPacker
 from opendbc.car import Bus, DT_CTRL, rate_limit, make_tester_present_msg, structs
+from opendbc.car.common.conversions import Conversions as CV
 from opendbc.car.honda import hondacan
 from opendbc.car.honda.hud_test import HudTest
 from opendbc.car.honda.accord_mvl_stock import AccordMvlStock, qualified as mvl_stock_qualified
@@ -183,10 +184,11 @@ class CarController(CarControllerBase):
     hud_control = CC.hudControl
     hud_v_cruise = hud_control.setSpeed / CS.v_cruise_factor if hud_control.speedVisible else 255
     if hud_control.speedVisible and self.CP.carFingerprint == CAR.HONDA_ACCORD_9G and not CS.is_metric:
-      # The 9G cluster takes CRUISE_SPEED in whole kph and rounds its mph conversion up, so a kph value
-      # rounded to nearest can display the setpoint +1 mph (70 mph -> 113 kph -> 70.2 -> "71").
-      # Floor keeps the cluster's value in (S-1, S], which it shows as S.
-      hud_v_cruise = math.floor(hud_v_cruise + 1e-6)
+      # The 9G cluster takes CRUISE_SPEED in whole kph and shows round(kph / 1.6) in mph (not / 1.609),
+      # while v_cruise is rarely on the mph grid (it starts at an integer kph from vEgo and steps 1.6 kph).
+      # Sending round(kph) or floor(kph) showed +/-1 mph depending on the engage speed (e.g. 50 mph -> 49 or 51).
+      # Send the kph nearest 1.6 * the mph comma displays, so the cluster lands within +/-0.31 of it.
+      hud_v_cruise = hondacan.accord_9g_cluster_kph(round(hud_control.setSpeed * CV.MS_TO_MPH))
     pcm_cancel_cmd = CC.cruiseControl.cancel
     if self.bosch_longitudinal is not None:
       self.bosch_longitudinal.observe_orientation(CC.orientationNED)

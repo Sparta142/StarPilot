@@ -149,6 +149,11 @@ _LKAS_HUD_TEST_SIGNALS = frozenset(('LKAS_PROBLEM', 'LKAS_OFF', 'CLEAN_WINDSHIEL
                                     'RDM_PROBLEM', 'RDM_HUD', 'RDM_HUD_2', 'RDM_ON', 'RDM_ON_2', 'BEEP', 'SOLID_LANES'))
 
 
+def accord_9g_cluster_kph(mph: int) -> int:
+  """CRUISE_SPEED for the Accord 9G cluster, which displays round(kph / 1.6) mph: the integer nearest 1.6 * mph."""
+  return (16 * mph + 5) // 10
+
+
 def create_acc_hud(packer, bus, CP, enabled, pcm_speed, pcm_accel, hud_control, hud_v_cruise, is_metric, acc_hud, overrides=None):
   acc_hud_values = {
     'CRUISE_SPEED': hud_v_cruise,
