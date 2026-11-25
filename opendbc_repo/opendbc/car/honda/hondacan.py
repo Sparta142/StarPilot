@@ -143,7 +143,13 @@ def create_bosch_supplemental_1(packer, CAN):
   return packer.make_can_msg("BOSCH_SUPPLEMENTAL_1", CAN.lkas, values)
 
 
-def create_acc_hud(packer, bus, CP, enabled, pcm_speed, pcm_accel, hud_control, hud_v_cruise, is_metric, acc_hud):
+_ACC_HUD_TEST_SIGNALS = frozenset(('ACC_PROBLEM', 'FCM_PROBLEM', 'FCM_OFF', 'FCM_OFF_2', 'RADAR_OBSTRUCTED', 'BRAKE_SYSTEM_ICON',
+                                   'DTC_MODE', 'CRUISE_CONTROL_LABEL', 'BOH_3', 'BOH_4', 'BOH_5', 'HUD_LEAD', 'CHIME'))
+_LKAS_HUD_TEST_SIGNALS = frozenset(('LKAS_PROBLEM', 'LKAS_OFF', 'CLEAN_WINDSHIELD', 'CAM_TEMP_HIGH', 'DTC', 'DASHED_LANES',
+                                    'RDM_PROBLEM', 'RDM_HUD', 'RDM_HUD_2', 'RDM_ON', 'RDM_ON_2', 'BEEP', 'SOLID_LANES'))
+
+
+def create_acc_hud(packer, bus, CP, enabled, pcm_speed, pcm_accel, hud_control, hud_v_cruise, is_metric, acc_hud, overrides=None):
   acc_hud_values = {
     'CRUISE_SPEED': hud_v_cruise,
     'ENABLE_MINI_CAR': 1 if enabled else 0,
@@ -169,10 +175,12 @@ def create_acc_hud(packer, bus, CP, enabled, pcm_speed, pcm_accel, hud_control, 
     acc_hud_values['FCM_PROBLEM'] = acc_hud['FCM_PROBLEM']
     acc_hud_values['ICONS'] = acc_hud['ICONS']
 
+  if overrides:
+    acc_hud_values.update({k: v for k, v in overrides.items() if k in acc_hud_values or k in _ACC_HUD_TEST_SIGNALS})
   return packer.make_can_msg("ACC_HUD", bus, acc_hud_values)
 
 
-def create_lkas_hud(packer, bus, CP, hud_control, lat_active, steering_available, alert_steer_required, lkas_hud):
+def create_lkas_hud(packer, bus, CP, hud_control, lat_active, steering_available, alert_steer_required, lkas_hud, overrides=None):
   commands = []
   # Classic/radarless AOL can steer while normal engagement is off.
   # Keep the upstream CAN-FD indication and ALT_RADAR overrides below.
@@ -207,6 +215,9 @@ def create_lkas_hud(packer, bus, CP, hud_control, lat_active, steering_available
   if CP.flags & HondaFlags.BOSCH_ALT_RADAR:
     lkas_hud_values['DASHED_LANES'] = steering_available
     lkas_hud_values['SOLID_LANES'] = lat_active
+
+  if overrides:
+    lkas_hud_values.update({k: v for k, v in overrides.items() if k in _LKAS_HUD_TEST_SIGNALS})
 
   if CP.flags & HondaFlags.BOSCH_EXT_HUD and not CP.openpilotLongitudinalControl:
     commands.append(packer.make_can_msg('LKAS_HUD_A', bus, lkas_hud_values))
