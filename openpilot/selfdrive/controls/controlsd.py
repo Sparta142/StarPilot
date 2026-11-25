@@ -164,6 +164,7 @@ class Controls:
     self.subaru_twitch_guard_armed = False
     self.aol_enabled_setting = True
     self.lateral_off = False
+    self.lateral_hud_requested = False
     self._aol_left_line_vis: bool | None = None
     self._aol_left_line_timer: float = 0.0
     self._aol_right_line_vis: bool | None = None
@@ -548,6 +549,7 @@ class Controls:
 
     if legacy_2025 and ((self.aol_enabled_setting and self.lateral_off) or (not self.aol_enabled_setting and not CC.enabled)):
       CC.latActive = False
+    self.lateral_hud_requested = bool(lateral_requested or CC.latActive)
 
     actuators = CC.actuators
     actuators.longControlState = self.LoC.long_control_state
@@ -893,6 +895,9 @@ class Controls:
     hudControl.setSpeed = float(CS.vCruiseCluster * CV.KPH_TO_MS)
     hudControl.speedVisible = CC.enabled
     hudControl.lanesVisible = CC.enabled
+    if self.CP.carFingerprint == HONDA_CAR.HONDA_ACCORD_9G:
+      # Cluster lane lines follow lateral intent (solid active / hollow pending), never long-only engagement.
+      hudControl.lanesVisible = self.lateral_hud_requested
     hudControl.leadVisible = self.sm['longitudinalPlan'].hasLead
     hudControl.leadVisible = self.longitudinal_inputs.lead_visible(hudControl.leadVisible)
     hudControl.leadDistanceBars = self.sm['selfdriveState'].personality.raw + 1
@@ -935,6 +940,20 @@ class Controls:
         if self.sm.valid['driverAssistance']:
           hudControl.leftLaneDepart = self.sm['driverAssistance'].leftLaneDeparture
           hudControl.rightLaneDepart = self.sm['driverAssistance'].rightLaneDeparture
+    elif self.CP.carFingerprint == HONDA_CAR.HONDA_ACCORD_9G:
+      # OEM-style: lane lines are only "held" (solid) while the model actually sees lane lines.
+      lane_probs = self.sm['modelV2'].laneLineProbs if self.sm.valid['modelV2'] and len(self.sm['modelV2'].laneLineProbs) >= 3 else None
+      if not self.lateral_hud_requested or lane_probs is None:
+        self._aol_left_line_vis = self._aol_right_line_vis = None
+        self._aol_left_line_timer = self._aol_right_line_timer = 0.0
+        hudControl.leftLaneVisible = hudControl.rightLaneVisible = False
+      else:
+        self._aol_left_line_vis, self._aol_left_line_timer = _update_subaru_line_visibility(
+          self._aol_left_line_vis, self._aol_left_line_timer, float(lane_probs[1]), DT_CTRL)
+        self._aol_right_line_vis, self._aol_right_line_timer = _update_subaru_line_visibility(
+          self._aol_right_line_vis, self._aol_right_line_timer, float(lane_probs[2]), DT_CTRL)
+        hudControl.leftLaneVisible = bool(self._aol_left_line_vis)
+        hudControl.rightLaneVisible = bool(self._aol_right_line_vis)
     else:
       hudControl.rightLaneVisible = True
       hudControl.leftLaneVisible = True

@@ -185,9 +185,14 @@ def create_lkas_hud(packer, bus, CP, hud_control, lat_active, steering_available
   # Classic/radarless AOL can steer while normal engagement is off.
   # Keep the upstream CAN-FD indication and ALT_RADAR overrides below.
   lanes_visible = bool(hud_control.lanesVisible or (lat_active and not (CP.flags & HondaFlags.BOSCH_CANFD)))
-  # Accord 9G: lanes only while lateral is actually active, not in longitudinal-only engagement.
+  # Accord 9G (OEM behavior): solid = lane being held (lateral active and lane lines detected);
+  # hollow = lateral on but not currently possible; none in longitudinal-only engagement
+  # (controlsd sets lanesVisible from lateral intent for this car).
+  accord_9g_dashed = False
   if CP.carFingerprint == CAR.HONDA_ACCORD_9G:
-    lanes_visible = bool(lat_active)
+    lines_detected = bool(hud_control.leftLaneVisible or hud_control.rightLaneVisible)
+    lanes_visible = bool(lat_active and lines_detected)
+    accord_9g_dashed = bool(hud_control.lanesVisible and not lanes_visible)
 
   lkas_hud_values = {
     'LKAS_READY': 1,
@@ -196,6 +201,9 @@ def create_lkas_hud(packer, bus, CP, hud_control, lat_active, steering_available
     'SOLID_LANES': lanes_visible,
     'BEEP': 0,
   }
+
+  if accord_9g_dashed:
+    lkas_hud_values['DASHED_LANES'] = 1
 
   if CP.flags & (HondaFlags.BOSCH_RADARLESS | HondaFlags.BOSCH_CANFD):
     lkas_hud_values['LANE_LINES'] = 3

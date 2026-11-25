@@ -60,6 +60,19 @@ def test_hidden_cruise_speed_unchanged():
 @pytest.mark.parametrize("lanes_visible", (False, True))
 def test_lane_lines_follow_lateral_only(lat_active, lanes_visible):
   cc = structs.CarControl(enabled=True, longActive=True, latActive=lat_active)
-  cc.hudControl.lanesVisible = lanes_visible  # controlsd sets this from enabled
+  cc.hudControl.lanesVisible = lanes_visible  # controlsd sets this from lateral intent
+  cc.hudControl.leftLaneVisible = cc.hudControl.rightLaneVisible = lanes_visible
   ci, frames = _send(cc)
-  assert bool(_decode(ci, frames, "LKAS_HUD", ci.CC.CAN.lkas)["SOLID_LANES"]) == lat_active
+  vl = _decode(ci, frames, "LKAS_HUD", ci.CC.CAN.lkas)
+  assert bool(vl["SOLID_LANES"]) == (lat_active and lanes_visible)
+  assert bool(vl["DASHED_LANES"]) == (lanes_visible and not lat_active)
+
+
+@pytest.mark.parametrize("lat_active", (False, True))
+def test_no_detected_lines_is_hollow(lat_active):
+  cc = structs.CarControl(enabled=True, longActive=True, latActive=lat_active)
+  cc.hudControl.lanesVisible = True
+  cc.hudControl.leftLaneVisible = cc.hudControl.rightLaneVisible = False
+  ci, frames = _send(cc)
+  vl = _decode(ci, frames, "LKAS_HUD", ci.CC.CAN.lkas)
+  assert not vl["SOLID_LANES"] and vl["DASHED_LANES"]
