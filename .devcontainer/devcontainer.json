@@ -1,0 +1,62 @@
+{
+  "name": "StarPilot",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:4": {
+      "moby": true
+    },
+    "ghcr.io/devcontainers/features/desktop-lite:1": {
+      "webPort": "6080",
+      "vncPort": "5901"
+    }
+  },
+  "forwardPorts": [
+    6080
+  ],
+  "portsAttributes": {
+    "6080": {
+      "label": "Desktop UI (noVNC)",
+      "onAutoForward": "silent"
+    },
+    "5901": {
+      "label": "VNC",
+      "onAutoForward": "ignore"
+    }
+  },
+  "containerEnv": {
+    "UV_LINK_MODE": "copy",
+    "UV_CACHE_DIR": "/home/vscode/.cache/uv",
+    "PIP_DEFAULT_TIMEOUT": "200"
+  },
+  "mounts": [
+    "source=starpilot-uv-cache,target=/home/vscode/.cache/uv,type=volume"
+  ],
+  "remoteUser": "vscode",
+  "onCreateCommand": "sudo chown -R vscode:vscode /home/vscode/.cache",
+  "postCreateCommand": "tools/setup_dependencies.sh",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "charliermarsh.ruff",
+        "ms-vscode.cpptools",
+        "ms-azuretools.vscode-docker"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "${containerWorkspaceFolder}/.venv/bin/python",
+        "python.terminal.activateEnvironment": true,
+        "files.watcherExclude": {
+          "**/.host_runtime/**": true,
+          "**/.comma_sysroot/**": true,
+          "**/.cache/**": true,
+          "**/.venv/**": true
+        },
+        "search.exclude": {
+          "**/.host_runtime": true,
+          "**/.comma_sysroot": true
+        }
+      }
+    }
+  }
+}
