@@ -7,7 +7,6 @@ from opendbc.can import CANPacker
 from opendbc.car import Bus, DT_CTRL, rate_limit, make_tester_present_msg, structs
 from opendbc.car.common.conversions import Conversions as CV
 from opendbc.car.honda import hondacan
-from opendbc.car.honda.hud_test import HudTest
 from opendbc.car.honda.accord_mvl_stock import AccordMvlStock, qualified as mvl_stock_qualified
 from opendbc.car.honda.modified_civic_steering import ModifiedCivicSteering
 from opendbc.car.honda.nidec_interceptor import NidecInterceptor, create_command, qualified as interceptor_qualified
@@ -104,7 +103,6 @@ class CarController(CarControllerBase):
     super().__init__(dbc_names, CP)
     self.packer = CANPacker(dbc_names[Bus.pt])
     self.params = CarControllerParams(CP)
-    self.hud_test = HudTest() if CP.carFingerprint == CAR.HONDA_ACCORD_9G else None
     self.lead_beep = (hondacan.Accord9gLeadBeep() if CP.carFingerprint == CAR.HONDA_ACCORD_9G and CP.openpilotLongitudinalControl
                       else None)
     self.CAN = hondacan.CanBus(CP)
@@ -320,17 +318,15 @@ class CarController(CarControllerBase):
 
     # Send dashboard UI commands.
     if self.frame % 10 == 0:
-      hud_overrides = (self.hud_test.overrides(CS.out.standstill and not CC.enabled and not CC.latActive and not CC.longActive)
-                       if self.hud_test is not None else None)
       if self.CP.openpilotLongitudinalControl:
         # On Nidec, this also controls longitudinal positive acceleration
         can_sends.append(hondacan.create_acc_hud(self.packer, self.CAN.pt, self.CP, CC.enabled, pcm_speed, pcm_accel,
-                                                 hud_control, hud_v_cruise, CS.is_metric, CS.acc_hud, hud_overrides))
+                                                 hud_control, hud_v_cruise, CS.is_metric, CS.acc_hud))
 
       steering_available = CS.out.cruiseState.available and CS.out.vEgo > max(self.params.STEER_GLOBAL_MIN_SPEED, self.CP.minSteerSpeed)
       lead_beep = self.lead_beep.update(CC.enabled, hud_control.leadVisible) if self.lead_beep is not None else 0
       can_sends.extend(hondacan.create_lkas_hud(self.packer, self.CAN.lkas, self.CP, hud_control, CC.latActive,
-                                                steering_available, alert_steer_required, CS.lkas_hud, hud_overrides,
+                                                steering_available, alert_steer_required, CS.lkas_hud,
                                                 beep=lead_beep))
 
       if self.CP.openpilotLongitudinalControl:
