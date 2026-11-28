@@ -1980,7 +1980,7 @@ class Car:
           self.slc_match_on_engage = self.read_slc_match_on_engage()
         self.v_cruise_helper.intervals = read_cruise_intervals(self.params, self.CP)
         tesla_set_speed_card.refresh(self)
-        for name in ('bluepilot_inputs', 'hands_free_cluster_input'):
+        for name in ('bluepilot_inputs', 'hands_free_cluster_input', 'lead_beep_input'):
           source = getattr(self.CI.CC, name, None)
           if source is not None:
             source.refresh_settings()

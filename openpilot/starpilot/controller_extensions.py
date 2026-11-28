@@ -27,6 +27,9 @@ def configure_controller(CI, params):
   from openpilot.starpilot.car.ford.cluster_preferences import FordClusterPreference, qualified as cluster_qualified
   if controller is not None and cluster_qualified(cp):
     controller.hands_free_cluster_input = FordClusterPreference(params)
+  from openpilot.starpilot.car.honda.lead_beep_preferences import LeadBeepPreference, qualified as lead_beep_qualified
+  if controller is not None and lead_beep_qualified(cp) and hasattr(controller, "lead_beep_input"):
+    controller.lead_beep_input = LeadBeepPreference(params)
   from opendbc.bluepilot_lateral.hosts.starpilot.safety_param import lateral_inputs_required
   if controller is not None and lateral_inputs_required(cp) and hasattr(controller, "bluepilot_inputs"):
     from openpilot.starpilot.car.ford.bluepilot import BluePilotInputs, FordBluePilotController

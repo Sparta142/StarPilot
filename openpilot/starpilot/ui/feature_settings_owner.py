@@ -70,6 +70,7 @@ from openpilot.starpilot.ui.tesla_coop_feature import TeslaCoopFeature
 from openpilot.starpilot.ui.tesla_rows import TeslaVehicleRows, TeslaWheelRows, KEYS as TESLA_SCREEN_KEYS
 from openpilot.starpilot.ui.ford_bluepilot_feature import FordBluePilotFeature, KEYS as FORD_BLUEPILOT_KEYS
 from openpilot.starpilot.ui.ford_cluster_feature import FordClusterFeature
+from openpilot.starpilot.ui.honda_lead_beep_feature import HondaLeadBeepFeature
 from openpilot.starpilot.ui.ford_rear_fog_feature import FordRearFogFeature
 from openpilot.starpilot.ui.preap_radar_feature import PreAPRadarFeature, KEYS as PREAP_RADAR_KEYS, capability as preap_radar_capability
 from openpilot.starpilot.ui.gm_tune_feature import GmTuneFeature, GmTruckFeature, GmEvPresetFeature
@@ -884,6 +885,7 @@ class FeatureSettingsOwner:
           self.gm_tune.capability() is not None or self.gm_truck.capability() is not None or
           self.gm_ev_preset.capability() is not None or self.volt_radar.capability() is not None or
           self.panda_wake.capability() is not None or FordRearFogFeature(self).capability() is not None or
+          HondaLeadBeepFeature(self).capability() is not None or
           preap_radar_capability(self.vehicle_params()) is not None):
         rows.append(FeatureRow("", "Vehicle Settings", "Configure features supported by your vehicle", page=FeaturePage.VEHICLE, available=True))
       rows.append(FeatureRow("", "Driving Personalities", "Adjust Aggressive, Standard, Relaxed and Traffic profiles",
@@ -908,6 +910,7 @@ class FeatureSettingsOwner:
           rows.append(self._bool_row("DriveModeDeceleration", "Match Deceleration", configurable and system_long,
                                      reason="Eco, Normal and Sport select Eco, Standard and Sport deceleration."))
       rows.extend(FordRearFogFeature(self).rows(parked))
+      rows.extend(HondaLeadBeepFeature(self).rows())
       capability = self._auto_hold_capability()
       allowed = configurable and capability is not None and self.authority("vehicle")
       row = self._bool_row("ToyotaAutoHold", "Automatic Brake Hold", allowed,
@@ -1459,6 +1462,8 @@ class FeatureSettingsOwner:
       return FordRearFogFeature(self).apply(request)
     if key == "FordHandsFreeCluster":
       return FordClusterFeature(self).apply(request)
+    if key == "HondaLeadBeep":
+      return HondaLeadBeepFeature(self).apply(request)
     if key in FORD_BLUEPILOT_KEYS:
       return FordBluePilotFeature(self).apply(request)
     if key == "TurnAssist":

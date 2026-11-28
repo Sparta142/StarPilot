@@ -17,6 +17,7 @@ DESCRIPTIONS = {
   'DriveModeDeceleration': 'Matches the deceleration profile to the vehicle’s drive mode.',
   'AggressiveCoolingEnabled': 'Uses a stronger fan curve on supported devices to reduce temperature at the cost of fan noise.',
   'HighwaySmoothingLevel': 'Reduces small steering corrections on highways above about 40 mph. 0% is off; higher values add more smoothing.',
+  'HondaLeadBeep': 'Plays a single chime when StarPilot speed control picks up a lead car, like the factory Accord ACC.',
   'FordRearFogIndicator': 'Shows a movable amber telltale while the Ford rear fog light is on, using read-only vehicle status.',
   'DisengageOnAccelerator': 'When enabled, pressing the accelerator pedal will disengage openpilot.',
   'TurnByTurn:large': 'Shows the next maneuver on the comma screen without changing the StarPort layout.',

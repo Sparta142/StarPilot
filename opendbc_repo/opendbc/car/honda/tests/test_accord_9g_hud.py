@@ -86,10 +86,11 @@ def test_no_detected_lines_is_hollow(lat_active):
   assert not vl["SOLID_LANES"] and vl["DASHED_LANES"]
 
 
-def _lead_beeps(steps):
+def _lead_beeps(steps, beep_input=None):
   """Feed (enabled, lead_visible) HUD frames through one controller; return the LKAS_HUD BEEP sent each frame."""
   cp = CarInterface.get_params(CAR.HONDA_ACCORD_9G, gen_empty_fingerprint(), [], True, False, False)
   ci = CarInterface(cp)
+  ci.CC.lead_beep_input = beep_input
   ci.update([])
   ci.CS.is_metric = False
   state = structs.CarState(vEgo=30.0)
@@ -128,3 +129,20 @@ def test_new_lead_after_gap_beeps_again():
 
 def test_no_lead_beep_when_disengaged():
   assert set(_lead_beeps([(False, True)] * 10)) == {0}
+
+
+class _Switch:
+  def __init__(self, enabled):
+    self.enabled = enabled
+
+  def update(self):
+    return self.enabled
+
+
+def test_lead_beep_switch_off_silences():
+  assert set(_lead_beeps([(True, False)] * 3 + [(True, True)] * 10, _Switch(False))) == {0}
+
+
+def test_lead_beep_switch_on_beeps():
+  beeps = _lead_beeps([(True, False)] * 3 + [(True, True)] * 10, _Switch(True))
+  assert beeps[3:6] == [3, 3, 3]
